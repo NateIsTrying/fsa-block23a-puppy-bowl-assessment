@@ -10,8 +10,8 @@ const fetchAllPlayers = async () => {
   try {
     // TODO
     const response = await fetch(`${API_URL}/players`);
-    const data = await response.json();
-    const allPlayerData = data.data.players;
+    const puppiesData = await response.json();
+    const allPlayerData = puppiesData.data.players;
     return allPlayerData;
   } catch (err) {
     console.error("Uh oh, trouble fetching players!", err);
@@ -27,12 +27,19 @@ const fetchAllPlayers = async () => {
 const fetchSinglePlayer = async (playerId) => {
   try {
     // TODO
-    const response = await fetch(`${API_URL}/players`);
-    const data = await response.json();
-    const singlePlayerData = data.data.players[playerId];
+    const response = await fetch(`${API_URL}/players/${playerId}`);
+    const puppyData = await response.json();
+    const singlePlayerData = puppyData.data.player;
+    // console.log(singlePlayerData);
+
+    if(!singlePlayerData){
+      console.log(`Player #${playerId} not found.`);
+      return null;
+    }
     return singlePlayerData;
   } catch (err) {
     console.error(`Oh no, trouble fetching player #${playerId}!`, err);
+    return null;
   }
 };
 
@@ -64,19 +71,13 @@ const addNewPlayer = async (playerObj) => {
  * @param {number} playerId the ID of the player to remove
  */
 const removePlayer = async (playerId) => {
-  try {
-    // TODO
+    console.log(`${playerId} has been removed.`);
     const response = await fetch(`${API_URL}/players/${playerId}`, {
       method: 'DELETE',
     });
     const result = await response.json();
-    console.log(result);
-  } catch (err) {
-    console.error(
-      `Whoops, trouble removing player #${playerId} from the roster!`,
-      err
-    );
-  }
+    console.log(`It's ${result.success}, the result was a success.`);
+    // renderAllPlayers(players);
 };
 
 /**
@@ -90,6 +91,8 @@ const removePlayer = async (playerId) => {
  * - image (with alt text of the player's name)
  *
  * Additionally, each card has two buttons:
+ * "See details" button that, when clicked, calls `renderSinglePlayer` to
+ * display more information about the player
   "Remove from roster" button that, when clicked, will call `removePlayer` to
    remove that specific player and then re-render all players
 
@@ -100,7 +103,7 @@ const renderAllPlayers = (playerList) => {
   // TODO
   try {
     const main = document.querySelector('main');
-
+    main.innerHTML = ``;
     playerList.forEach((player) => {
       const section = document.createElement('section');
       main.appendChild(section);
@@ -114,30 +117,35 @@ const renderAllPlayers = (playerList) => {
       `
     });
 
+    const detailsButtons = document.querySelectorAll('.details-button');
+    detailsButtons.forEach(detailsButton => {
+      detailsButton.addEventListener('click', async(event) => {
+      const playerId = event.target.getAttribute('data-id');
+      console.log(playerId);
+
+      await renderSinglePlayer(playerId);
+  
+    })
+  });
+
     const deleteButtons = document.querySelectorAll('.delete-button');
     deleteButtons.forEach((deleteButton) => {
       deleteButton.addEventListener('click', async (event) => {
         const playerId = event.target.getAttribute('data-id');
         console.log(playerId);
        
-        await removePlayer(playerId)
+        await removePlayer(playerId);
 
-        // const playerList = await fetchAllPlayers;
-        // renderAllPlayers(playerList);
-      })
-    });
+    })
+  });
+
 
   } catch (error) {
     console.log(`issue occured in 'render all players'`, error);
   }
 };
 
-// const detailsButton = document.querySelectorAll('.details-button');
-// detailsButton.forEach(button => {
-//   button.addEventListener('click', async(detail) => {
-//     const playerId = detail.target.dataset.id;
-//   })
-// })
+
 
 
 /**
@@ -153,19 +161,44 @@ const renderAllPlayers = (playerList) => {
  * will call `renderAllPlayers` to re-render the full list of players.
  * @param {Object} player an object representing a single player
  */
-const renderSinglePlayer = (player) => {
+const renderSinglePlayer = async (playerId) => {
   // TODO
-  const main = document.querySelector('main');
-  const section = document.createElement('section');
-  main.appendChild(section);
-  section.innerHTML = `
-    <h3>${player.name}</h3>
-    <h5>Breed: ${player.breed}</h5>
-    <img src='${player.imageUrl}'/>
+  try {
+    const main = document.querySelector('main');
+    main.innerHTML = '';
+    const player = await fetchSinglePlayer(playerId);
 
-    <button class='details-button' data-id=${player.id}>See Details</button>
-    <button class='delete-button' data-id=${player.id}>Remove from Roster</button>
-  `
+    if(!player){
+      const section = document.createElement('section');
+      main.appendChild(section);
+      section.innerHTML = `<h3>Player not found.</h3>`;
+      return;
+    }
+
+    const section = document.createElement('section');
+    main.appendChild(section);
+    section.innerHTML = `
+      <h3>${player.name}</h3>
+      <h5>Breed: ${player.breed}</h5>
+      <img src='${player.imageUrl}'/>
+
+      <button class='return-button'>Return</button>
+      <button class='delete-button' data-id=${player.id}>Remove from Roster</button>
+    `;
+  
+    const returnButton = document.querySelector('.return-button');
+    returnButton.addEventListener('click', async() => {
+      const players = await fetchAllPlayers();
+      renderAllPlayers(players);  
+    });
+
+    const deleteButton = document.querySelector('.delete-button');
+    deleteButton.addEventListener('click', async() => {
+      await removePlayer(player.id);
+    })
+  } catch (error) {
+    console.log('Error occured in renderSinglePlayer', error);
+  }
 };
 
 /**
@@ -179,7 +212,7 @@ const renderNewPlayerForm = async () => {
     // TODOAPI_URL
     const response = await fetch (`${API_URL}/teams`);
     const result = await response.json();
-    console.log(result);
+    // console.log(result);
 
     let formHTML = `
       <h3>Add a new puppy!</h3>
@@ -244,7 +277,7 @@ const init = async () => {
 
   const players = await fetchAllPlayers();
   console.log(players);
-  // console.log(await fetchSinglePlayer(2));
+  // await fetchSinglePlayer();
   renderAllPlayers(players);
   // renderSinglePlayer(players[0])
   // renderNewPlayerForm();
